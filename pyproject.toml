@@ -1,0 +1,10 @@
+[project]
+name = "pyridine"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "frozendict>=2.4.7",
+    "python-dotenv-vault>=0.7.0",
+]
