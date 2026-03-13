@@ -2,8 +2,10 @@ import sys
 import webbrowser
 import kiteconnect
 
+from modules.strategy.test_moving_average_strategy import MovingAverageStrategyTester
 from utils.envs import envs
 from utils.kite import get_kite
+import pandas as pd
 
 req_token = envs.get("KITE_REQUEST_TOKEN")
 api_secret = envs.get("KITE_API_SECRET")
@@ -16,8 +18,15 @@ try:
         kite.set_access_token(access_token)
 
     # test authentication
-    kite.profile()
+    profile = kite.profile()
+    #print(profile)
 
+    data = MovingAverageStrategyTester(kite)
+
+    print(data)
+
+    df = pd.DataFrame(data)
+    df.to_csv("MovingAverageStrategyTester_result.csv", index=False)
 
 except kiteconnect.exceptions.TokenException:
     print("Access token invalid or expired.")
