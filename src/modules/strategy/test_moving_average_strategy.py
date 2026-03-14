@@ -4,11 +4,13 @@ from modules.strategy.base import Candle
 from modules.strategy.moving_average_strategy import MovingAverageStrategy
 
 def MovingAverageStrategyTester(kite: KiteConnect): 
-    bt = Backtester(MovingAverageStrategy())
+    strategy = MovingAverageStrategy(2,10)
+
+    bt = Backtester(strategy)
     historical_data = kite.historical_data(
         instrument_token = "408065",
         from_date="2026-01-01 00:00:00",
-        to_date="2026-02-01 00:00:00",
+        to_date="2026-03-01 00:00:00",
         interval="5minute"
     )
 

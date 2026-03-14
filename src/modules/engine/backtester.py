@@ -1,33 +1,41 @@
-from modules.strategy.base import Candle, Signal, Strategy
+from modules.strategy.base import Candle, Signal, Strategy, Trade
+import logging
+
+logger = logging.getLogger(" [BACKTESTER] ")
 
 class Backtester:
     def __init__(self, strategy: Strategy):
         self.strategy = strategy
-        self.position = None
-        self.trades = []
+        self.candles: list[Candle] = []
+        self.trades: list[Trade] = []
+        self.position_price: float | None = None
+        logger.info(f" {strategy.name} Initialized")
 
     def run(self, candles: list[Candle]):
+        self.candles = candles
+
         for candle in candles:
-            print(candle)
+            signal = self.strategy.on_candles(self.candles)
 
-            signal = self.strategy.on_candle(candle)
-            print(signal)
+            if signal == Signal.BUY and self.position_price is None:
+                self.position_price = candle.close
 
+            elif signal == Signal.SELL and self.position_price is not None:
+                profit = candle.close - self.position_price
 
-            if signal == Signal.BUY and self.position is None:
-                self.position = candle.close
+                trade = Trade(
+                    time=candle.time,
+                    buy_price=self.position_price,
+                    less_price=candle.close,
+                    profit=profit
+                )
 
-            elif signal == Signal.SELL and self.position is not None:
-                profit = candle.close - self.position
+                self.trades.append(trade)
 
-                self.trades.append({
-                    "buy_price": self.position,
-                    "sell_price": candle.close,
-                    "profit": profit,
-                    "time": candle.time
-                })
-
-                self.position = None
+                self.position_price = None
 
     def get_results(self):
-        return self.trades
+         return self.trades
+
+    def __del__(self):
+        logger.info(f" {self.strategy.name} Finished")

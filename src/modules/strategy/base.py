@@ -27,7 +27,8 @@ class Candle:
     volume: float
 
 class Strategy(ABC):
+    name: str
 
     @abstractmethod
-    def on_candle(self, candle: Candle) -> Signal:
+    def on_candles(self, candles: list[Candle]) -> Signal:
         raise NotImplementedError

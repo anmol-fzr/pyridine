@@ -1,23 +1,19 @@
 from modules.strategy.base import Candle, Signal, Strategy
-from talib import RSI
 import logging
 
-class RSIStrategy(Strategy):
+
+class MovingAverageStrategy(Strategy):
     def __init__(self, short: int, long: int):
-        self.name = "RSI Strategy"
+        self.name = "Moving Average"
         self.short = short
         self.long = long
         self._logger = logging.getLogger(f" [{self.name}] ")
         self._logger.info(" Initialized")
 
     def on_candles(self, candles: list[Candle]) -> Signal:
-        for ca
-
         if len(candles) < self.long:
             return Signal.HOLD
 
-
-        RSI()
         short_ma = sum(c.close for c in candles[-self.short:]) / self.short
         long_ma = sum(c.close for c in candles[-self.long:]) / self.long
 

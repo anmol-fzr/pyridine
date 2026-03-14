@@ -2,7 +2,6 @@ import os
 
 from frozendict import frozendict as freezed
 from dotenv_vault import load_dotenv
-from hashlib import sha256
 load_dotenv()
 
 envs = freezed({
@@ -14,9 +13,3 @@ envs = freezed({
     "KITE_ACCESS_TOKEN": os.getenv("KITE_ACCESS_TOKEN"),
     "KITE_PUBLIC_TOKEN": os.getenv("KITE_PUBLIC_TOKEN"),
 })
-
-
-# envs.get("KITE")
-# envs.get("API_KEY") 
-# envs.get("API_KEY") 
-# api_key + request_token + api_secret;
