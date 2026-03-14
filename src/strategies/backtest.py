@@ -16,6 +16,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+from utils.action_logger import ActionLogger
+
 log = logging.getLogger(__name__)
 
 
@@ -128,6 +130,13 @@ class BacktestEngine:
         self.quantity = quantity
         self.initial_capital = capital
         self.strategy = strategy
+        
+        # Instantiate localized action logger
+        out_dir = "reports"
+        if strategy:
+            safe_label = strategy.label.replace(':', '_')
+            out_dir = f"reports/{safe_label}"
+        self.action_logger = ActionLogger(output_dir=out_dir)
 
     def run(self) -> BacktestResult:
         """Execute the backtest and return results."""
@@ -160,6 +169,18 @@ class BacktestEngine:
                 next_candle = self.candles[i + 1]
                 entry_price = candle["close"]
                 exit_price = next_candle["close"]
+
+                strategy_label = self.strategy.label if self.strategy else "RSI Breakout (Default)"
+                symbol = self.strategy.tradingsymbol if self.strategy else "UNKNOWN"
+
+                self.action_logger.log_action(
+                    mode="backtest",
+                    strategy_label=strategy_label,
+                    symbol=symbol,
+                    action="BUY",
+                    trigger_price=entry_price,
+                    candle=candle
+                )
 
                 trade = Trade(
                     entry_index=i,

@@ -84,6 +84,7 @@ class RSIBreakoutBuy(Strategy):
 
         if len(candles) >= 2:
             self._prev_candle_high = candles[-2]["high"]
+            self.latest_candle = candles[-2]
             log.info(
                 "[%s] Loaded %d candles. Prev candle high: %.2f",
                 self.label, len(candles), self._prev_candle_high,

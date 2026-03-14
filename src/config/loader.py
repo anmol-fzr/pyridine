@@ -6,6 +6,8 @@ import json
 import os
 import logging
 
+from kiteconnect import KiteConnect
+
 from strategies.base import Strategy
 
 log = logging.getLogger(__name__)
@@ -53,7 +55,7 @@ def _resolve_instrument_token_cached(kite, exchange: str, symbol: str) -> int | 
 
 
 def load_strategies(
-    kite,
+    kite: KiteConnect,
     config_path: str | None = None,
 ) -> list[Strategy]:
     """

@@ -31,6 +31,7 @@ class Strategy(ABC):
         self.exchange = exchange
         self.quantity = quantity
         self.params = params
+        self.latest_candle: dict | None = None
 
     @property
     @abstractmethod

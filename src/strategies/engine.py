@@ -15,6 +15,7 @@ from kiteconnect import KiteTicker
 
 from strategies.base import Strategy
 from strategies.backtest import BacktestEngine, generate_report, generate_combined_report
+from utils.action_logger import ActionLogger
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +36,13 @@ class StrategyEngine:
         self._dispatch: dict[int, list[Strategy]] = defaultdict(list)
         for s in strategies:
             self._dispatch[s.instrument_token].append(s)
+
+        # Build ActionLogger dict for live mode (each saves to reports/<strategy_label>)
+        self._action_loggers: dict[str, ActionLogger] = {}
+        for s in strategies:
+            safe_label = s.label.replace(':', '_')
+            out_dir = f"reports/{safe_label}"
+            self._action_loggers[s.label] = ActionLogger(output_dir=out_dir)
 
         # All unique tokens to subscribe
         self._tokens = list(self._dispatch.keys())
@@ -65,7 +73,18 @@ class StrategyEngine:
 
                 for strategy in self._dispatch.get(token, []):
                     if strategy.on_tick(last_price):
-                        strategy.execute_buy(last_price)
+                        order_id = strategy.execute_buy(last_price)
+                        if order_id is not None:
+                            logger = self._action_loggers.get(strategy.label)
+                            if logger:
+                                logger.log_action(
+                                    mode="live",
+                                    strategy_label=strategy.label,
+                                    symbol=strategy.tradingsymbol,
+                                    action="BUY",
+                                    trigger_price=last_price,
+                                    candle=strategy.latest_candle
+                                )
 
         def on_connect(ws, response):
             log.info("WebSocket connected. Subscribing to %d tokens.", len(self._tokens))
