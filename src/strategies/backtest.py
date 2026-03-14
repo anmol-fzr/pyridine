@@ -124,18 +124,20 @@ class BacktestEngine:
         quantity: int = 1,
         capital: float = 100_000.0,
         strategy=None,
+        output_dir: str = "reports/backtest",
     ):
         self.candles = candles
         self.rsi_period = rsi_period
         self.quantity = quantity
         self.initial_capital = capital
         self.strategy = strategy
+        self.output_dir = output_dir
         
         # Instantiate localized action logger
-        out_dir = "reports"
+        out_dir = self.output_dir
         if strategy:
             safe_label = strategy.label.replace(':', '_')
-            out_dir = f"reports/{safe_label}"
+            out_dir = f"{self.output_dir}/{safe_label}"
         self.action_logger = ActionLogger(output_dir=out_dir)
 
     def run(self) -> BacktestResult:

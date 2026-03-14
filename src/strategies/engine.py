@@ -37,11 +37,11 @@ class StrategyEngine:
         for s in strategies:
             self._dispatch[s.instrument_token].append(s)
 
-        # Build ActionLogger dict for live mode (each saves to reports/<strategy_label>)
+        # Build ActionLogger dict for live mode (each saves to reports/live/<strategy_label>)
         self._action_loggers: dict[str, ActionLogger] = {}
         for s in strategies:
             safe_label = s.label.replace(':', '_')
-            out_dir = f"reports/{safe_label}"
+            out_dir = f"reports/live/{safe_label}"
             self._action_loggers[s.label] = ActionLogger(output_dir=out_dir)
 
         # All unique tokens to subscribe
@@ -133,7 +133,7 @@ class StrategyEngine:
         self,
         days: int = 60,
         capital: float = 100_000.0,
-        output_dir: str = "reports",
+        output_dir: str = "reports/backtest",
     ):
         """
         Run backtest for every strategy instance and generate reports.
@@ -182,6 +182,7 @@ class StrategyEngine:
                 quantity=strategy.quantity,
                 capital=capital,
                 strategy=strategy,
+                output_dir=output_dir,
             )
 
             log.info("[%s] Running backtest...", strategy.label)
