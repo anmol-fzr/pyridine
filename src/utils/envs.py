@@ -13,10 +13,11 @@ envs = freezed({
     "KITE_REQUEST_TOKEN": os.getenv("KITE_REQUEST_TOKEN"),
     "KITE_ACCESS_TOKEN": os.getenv("KITE_ACCESS_TOKEN"),
     "KITE_PUBLIC_TOKEN": os.getenv("KITE_PUBLIC_TOKEN"),
+
+    # Strategy config
+    "TRADE_SYMBOL": os.getenv("TRADE_SYMBOL", "RELIANCE"),
+    "TRADE_EXCHANGE": os.getenv("TRADE_EXCHANGE", "NSE"),
+    "TRADE_QUANTITY": os.getenv("TRADE_QUANTITY", "1"),
+    "TRADE_INTERVAL": os.getenv("TRADE_INTERVAL", "5minute"),
+    "RSI_PERIOD": os.getenv("RSI_PERIOD", "14"),
 })
-
-
-# envs.get("KITE")
-# envs.get("API_KEY") 
-# envs.get("API_KEY") 
-# api_key + request_token + api_secret;

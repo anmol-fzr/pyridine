@@ -1,0 +1,15 @@
+{
+  "strategies": [
+    {
+      "type": "rsi_breakout",
+      "instruments": [
+        { "symbol": "RELIANCE", "exchange": "NSE", "quantity": 1 },
+        { "symbol": "INFY",     "exchange": "NSE", "quantity": 1 }
+      ],
+      "params": {
+        "rsi_period": 14,
+        "interval": "5minute"
+      }
+    }
+  ]
+}

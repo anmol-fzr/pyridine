@@ -10,4 +10,5 @@ dependencies = [
     "pytest>=9.0.2",
     "python-dotenv-vault>=0.7.0",
     "requests>=2.32.5",
+    "matplotlib>=3.8",
 ]
