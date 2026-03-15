@@ -3,6 +3,7 @@ Strategy base class — all trading strategies must implement this interface.
 """
 
 from abc import ABC, abstractmethod
+import datetime
 import logging
 
 log = logging.getLogger(__name__)
@@ -23,6 +24,8 @@ class Strategy(ABC):
         tradingsymbol: str,
         exchange: str,
         quantity: int = 1,
+        # session_start: datetime.time = datetime.time(9, 30, 0),
+        # session_end: datetime.time = datetime.time(15, 0, 0),
         **params,
     ):
         self.kite = kite
@@ -30,6 +33,8 @@ class Strategy(ABC):
         self.tradingsymbol = tradingsymbol
         self.exchange = exchange
         self.quantity = quantity
+        # self.session_start = session_start
+        # self.session_end = session_end
         self.params = params
         self.latest_candle: dict | None = None
 

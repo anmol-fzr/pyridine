@@ -2,6 +2,7 @@
 Config loader — reads strategies.json and instantiates Strategy objects.
 """
 
+import datetime
 import json
 import os
 import logging
@@ -83,9 +84,11 @@ def load_strategies(
 
     for entry in config.get("strategies", []):
         strategy_type = entry["type"]
+
         params = entry.get("params", {})
 
         cls = _STRATEGY_REGISTRY.get(strategy_type)
+
         if cls is None:
             log.error(
                 "Unknown strategy type '%s'. Registered: %s",
@@ -98,7 +101,14 @@ def load_strategies(
             symbol = instrument["symbol"]
             exchange = instrument["exchange"]
             quantity = instrument.get("quantity", 1)
+            # session_start = instrument.get("session_start", datetime.time(9, 30, 0))
+            #session_start =  datetime.time(9, 30, 0)
+            #params["session_start"] = session_start
+            # session_end = instrument.get("session_end", datetime.time(15, 0, 0))
 
+            print("---------------------------------------------")
+            print(params)
+            print("---------------------------------------------")
             token = _resolve_instrument_token_cached(kite, exchange, symbol)
             if token is None:
                 log.error("Could not find token for %s:%s — skipping.", exchange, symbol)
@@ -110,6 +120,8 @@ def load_strategies(
                 tradingsymbol=symbol,
                 exchange=exchange,
                 quantity=quantity,
+                # session_start=params.get("session_start", datetime.time(9, 30, 0)),
+                # session_end=params.get("session_end", datetime.time(15, 0, 0)),
                 **params,
             )
 

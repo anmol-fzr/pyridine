@@ -14,7 +14,6 @@ from utils.indicators import compute_rsi
 
 log = logging.getLogger(__name__)
 
-
 @register_strategy("rsi_breakout")
 class RSIBreakoutBuy(Strategy):
     """
@@ -37,6 +36,8 @@ class RSIBreakoutBuy(Strategy):
         tradingsymbol: str,
         exchange: str,
         quantity: int = 1,
+        # session_start: datetime.time = datetime.time(9, 30, 0),
+        # session_end: datetime.time = datetime.time(15, 0, 0),
         rsi_period: int = 14,
         interval: str = "5minute",
         **params,
@@ -47,6 +48,8 @@ class RSIBreakoutBuy(Strategy):
             tradingsymbol=tradingsymbol,
             exchange=exchange,
             quantity=quantity,
+            # session_start=session_start,
+            # session_end=session_end,
             rsi_period=rsi_period,
             interval=interval,
             **params,

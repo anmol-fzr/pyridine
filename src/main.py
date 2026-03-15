@@ -25,7 +25,7 @@ log = logging.getLogger("pyridine")
 # ── Authentication ──────────────────────────────────────────────────
 
 
-def authenticate(kite) -> bool:
+def authenticate(kite: kiteconnect.KiteConnect) -> bool:
     """
     Authenticate the Kite session. Tries access_token first,
     falls back to generating a new session from request_token.
