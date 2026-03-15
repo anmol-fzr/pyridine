@@ -24,8 +24,6 @@ class Strategy(ABC):
         tradingsymbol: str,
         exchange: str,
         quantity: int = 1,
-        # session_start: datetime.time = datetime.time(9, 30, 0),
-        # session_end: datetime.time = datetime.time(15, 0, 0),
         **params,
     ):
         self.kite = kite
@@ -33,10 +31,32 @@ class Strategy(ABC):
         self.tradingsymbol = tradingsymbol
         self.exchange = exchange
         self.quantity = quantity
-        # self.session_start = session_start
-        # self.session_end = session_end
+        
+        session_start_config = params.get("session_start") or {}
+        session_end_config = params.get("session_end") or {}
+
+        self.session_start = datetime.time(
+            session_start_config.get("hour", 9),
+            session_start_config.get("minute", 30),
+            session_start_config.get("second", 0),
+        )
+
+        self.session_end = datetime.time(
+            session_end_config.get("hour", 15),
+            session_end_config.get("minute", 0),
+            session_end_config.get("second", 0),
+        )
+
         self.params = params
         self.latest_candle: dict | None = None
+
+    def in_session(self, check_time: datetime.time | None = None) -> bool:
+        """
+        Return True if the specified time (or current time) is within the allowed trading window.
+        By default, the market trading window logic restricts trading between 09:30 and 15:00.
+        """
+        current_time = check_time or datetime.datetime.now().time()
+        return self.session_start <= current_time <= self.session_end
 
     @property
     @abstractmethod

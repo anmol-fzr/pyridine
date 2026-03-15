@@ -1,8 +1,11 @@
 """
 RSI Breakout Buy Strategy.
 
-Buy signal: RSI(period) > 50 AND current tick price > previous candle's high.
-Only BUY is implemented — no sell logic.
+Buy signal: RSI crosses ABOVE 50
+Entry: Next candle breaks above the HIGH of the signal candle
+Stop Loss: LOW of the signal candle
+Target: Entry + (High_signal - Low_signal) * 2
+Only BUY is implemented.
 """
 
 import datetime
@@ -10,19 +13,22 @@ import logging
 
 from strategies.base import Strategy
 from config.loader import register_strategy
-from utils.indicators import compute_rsi
+from utils.indicators import compute_rsi_series
 
 log = logging.getLogger(__name__)
 
 @register_strategy("rsi_breakout")
 class RSIBreakoutBuy(Strategy):
     """
-    Monitors live ticks and fires a BUY signal when:
-      1. RSI (computed from recent historical closes) > 50
-      2. The current tick's last_price > previous completed candle's high
+    RSI-50 Crossover Intraday Strategy — Kite Connect
 
-    One buy per signal — a cooldown flag prevents duplicate orders
-    until candles are refreshed.
+    Strategy Logic:
+      - Timeframe  : 5-minute candles
+      - Signal     : RSI crosses ABOVE 50
+      - Entry      : Next candle breaks above the HIGH of the signal candle
+      - Stop Loss  : LOW of the signal candle
+      - Target     : Entry + (High_signal - Low_signal) * 2
+      - Session    : 09:30 AM – 03:00 PM IST (handled by base)
     """
 
     @property
@@ -36,8 +42,6 @@ class RSIBreakoutBuy(Strategy):
         tradingsymbol: str,
         exchange: str,
         quantity: int = 1,
-        # session_start: datetime.time = datetime.time(9, 30, 0),
-        # session_end: datetime.time = datetime.time(15, 0, 0),
         rsi_period: int = 14,
         interval: str = "5minute",
         **params,
@@ -48,96 +52,125 @@ class RSIBreakoutBuy(Strategy):
             tradingsymbol=tradingsymbol,
             exchange=exchange,
             quantity=quantity,
-            # session_start=session_start,
-            # session_end=session_end,
             rsi_period=rsi_period,
             interval=interval,
             **params,
         )
+
         self.rsi_period = int(rsi_period)
         self.interval = interval
 
         # Internal state
-        self._signal_fired = False
-        self._prev_candle_high: float | None = None
-        self._closes: list[float] = []
+        self._signal_candle: dict | None = None
+        self._waiting_entry: bool = False
+        self._trade_taken: bool = False
+        self._last_date: datetime.date | None = None
 
         # Load initial historical data
         self._load_history()
 
     def _load_history(self):
-        """Fetch recent historical candles and seed RSI closes + prev candle high."""
+        """Fetch historical candles and check for RSI crossover signal."""
         now = datetime.datetime.now()
+        # Fetch up to 5 days to get enough data for RSI
         from_date = now - datetime.timedelta(days=5)
 
-        candles = self.kite.historical_data(
-            instrument_token=self.instrument_token,
-            from_date=from_date,
-            to_date=now,
-            interval=self.interval,
-        )
+        try:
+            candles = self.kite.historical_data(
+                instrument_token=self.instrument_token,
+                from_date=from_date,
+                to_date=now,
+                interval=self.interval,
+            )
+        except Exception as e:
+            log.error("[%s] Failed to fetch historical data: %s", self.label, e)
+            return
 
-        if len(candles) < self.rsi_period + 2:
+        if not candles:
+            return
+
+        # Keep track of current day to reset state if it's a new day
+        latest_date = candles[-1]["date"].date()
+        if self._last_date is not None and self._last_date != latest_date:
+            log.info("[%s] New session detected (%s), resetting state.", self.label, latest_date)
+            self._trade_taken = False
+            self._waiting_entry = False
+            self._signal_candle = None
+            
+        self._last_date = latest_date
+
+        # Drop the still-forming (current) candle — keep only completed ones
+        completed_candles = candles[:-1]
+
+        if len(completed_candles) < self.rsi_period + 2:
             log.warning(
-                "[%s] Only %d candles available, need at least %d for RSI(%d).",
-                self.label, len(candles), self.rsi_period + 2, self.rsi_period,
+                "[%s] Only %d completed candles available, need at least %d.",
+                self.label, len(completed_candles), self.rsi_period + 2
             )
+            return
 
-        self._closes = [c["close"] for c in candles]
+        closes = [c["close"] for c in completed_candles]
+        
+        try:
+            rsi_series = compute_rsi_series(closes, self.rsi_period)
+        except ValueError as e:
+            log.error("[%s] RSI computation error: %s", self.label, e)
+            return
 
-        if len(candles) >= 2:
-            self._prev_candle_high = candles[-2]["high"]
-            self.latest_candle = candles[-2]
-            log.info(
-                "[%s] Loaded %d candles. Prev candle high: %.2f",
-                self.label, len(candles), self._prev_candle_high,
-            )
-        else:
-            self._prev_candle_high = None
-            log.warning("[%s] Not enough candles for prev candle high.", self.label)
+        if len(rsi_series) >= 2:
+            prev_rsi = rsi_series[-2]
+            curr_rsi = rsi_series[-1]
+
+            latest_completed_candle = completed_candles[-1]
+
+            # Check for RSI passing above 50 on the LATEST completed candle
+            if prev_rsi < 50 <= curr_rsi:
+                if not self._waiting_entry and not self._trade_taken:
+                    self._signal_candle = latest_completed_candle
+                    self._waiting_entry = True
+                    log.info(
+                        "[%s] ✅ RSI crossed 50 -> Signal candle recorded. H=%.2f, L=%.2f, C=%.2f, time=%s",
+                        self.label, self._signal_candle["high"], self._signal_candle["low"], 
+                        self._signal_candle["close"], self._signal_candle["date"]
+                    )
 
     def refresh_candles(self) -> None:
         """Re-fetch candles to pick up newly completed candles."""
         self._load_history()
-        self._signal_fired = False
 
     def on_tick(self, last_price: float) -> bool:
         """
         Check if the buy signal conditions are met.
 
-        Returns True if RSI > 50, price > prev high, and signal hasn't fired.
+        Returns True if signal candle high is broken and we are awaiting entry.
         """
-        if self._signal_fired:
+        if self._trade_taken:
             return False
 
-        if self._prev_candle_high is None:
+        if not self._waiting_entry or not self._signal_candle:
             return False
 
-        if len(self._closes) < self.rsi_period + 1:
-            return False
-
-        rsi = compute_rsi(self._closes, self.rsi_period)
-
-        if rsi <= 50:
-            log.debug("[%s] RSI=%.2f (≤50) — no signal.", self.label, rsi)
-            return False
-
-        if last_price <= self._prev_candle_high:
-            log.debug(
-                "[%s] Price %.2f ≤ prev high %.2f — no signal.",
-                self.label, last_price, self._prev_candle_high,
+        if last_price > self._signal_candle["high"]:
+            log.info(
+                "[%s] 🚀 Entry triggered! Current %.2f > Signal H=%.2f",
+                self.label, last_price, self._signal_candle["high"]
             )
-            return False
+            return True
 
-        log.info(
-            "[%s] 🟢 BUY SIGNAL: RSI=%.2f (>50), price=%.2f > prev_high=%.2f",
-            self.label, rsi, last_price, self._prev_candle_high,
-        )
-        return True
+        return False
 
     def execute_buy(self, last_price: float) -> str | None:
-        """Place a market buy order and set cooldown."""
-        self._signal_fired = True
+        """Place a limit order with SL and target logic."""
+        if not self._signal_candle:
+            return None
+
+        self._trade_taken = True
+        self._waiting_entry = False
+
+        entry_price = self._signal_candle["high"] + 0.05
+        stop_loss = self._signal_candle["low"]
+        risk = self._signal_candle["high"] - self._signal_candle["low"]
+        target = entry_price + (risk * 2)
 
         try:
             order_id = self.kite.place_order(
@@ -146,13 +179,14 @@ class RSIBreakoutBuy(Strategy):
                 tradingsymbol=self.tradingsymbol,
                 transaction_type=self.kite.TRANSACTION_TYPE_BUY,
                 quantity=self.quantity,
-                product=self.kite.PRODUCT_CNC,
-                order_type=self.kite.ORDER_TYPE_MARKET,
+                product=self.kite.PRODUCT_MIS,
+                order_type=self.kite.ORDER_TYPE_LIMIT,
+                price=round(entry_price, 2),
                 tag="rsi_breakout",
             )
             log.info(
-                "[%s] ✅ BUY ORDER — id=%s, qty=%d, price≈%.2f",
-                self.label, order_id, self.quantity, last_price,
+                "[%s] ✅ BUY ORDER — Entry=%.2f, SL=%.2f, Target=%.2f, Qty=%d, ID=%s",
+                self.label, entry_price, stop_loss, target, self.quantity, order_id
             )
             return order_id
         except Exception as e:
@@ -161,21 +195,48 @@ class RSIBreakoutBuy(Strategy):
 
     def backtest_check(self, candles: list[dict], index: int) -> bool:
         """
-        Check if a buy signal would fire at candles[index].
-
-        Uses closes up to candles[index] for RSI, and
-        candles[index-1]['high'] as the previous candle high.
+        Check if a buy signal would have fired at candles[index],
+        given all candles up to that point.
         """
-        if index < self.rsi_period + 1:
+        if index < self.rsi_period + 2:
             return False
 
-        if index < 1:
+        current_candle = candles[index]
+        current_date = current_candle["date"].date()
+
+        closes = [c["close"] for c in candles[: index]]
+        try:
+            rsi_series = compute_rsi_series(closes, self.rsi_period)
+        except ValueError:
+            return False
+            
+        if len(rsi_series) < 2:
             return False
 
-        closes = [c["close"] for c in candles[: index + 1]]
-        rsi = compute_rsi(closes, self.rsi_period)
+        # Traverse backwards to find the latest crossover within the same day
+        idx = index - 1
+        while idx >= self.rsi_period + 1 and candles[idx]["date"].date() == current_date:
+            rsi_idx = len(rsi_series) - 1 - (index - 1 - idx)
+            
+            if rsi_idx < 1:
+                break
+                
+            c_rsi = rsi_series[rsi_idx]
+            p_rsi = rsi_series[rsi_idx - 1]
+            
+            if p_rsi < 50 <= c_rsi:
+                signal_candle = candles[idx]
+                
+                # Check if high was broken in any intermediate candle
+                broken_earlier = any(candles[k]["high"] > signal_candle["high"] for k in range(idx + 1, index))
+                
+                if not broken_earlier:
+                    if current_candle["high"] > signal_candle["high"]:
+                        return True
+                
+                # Stop looking since this is the most recent crossover
+                break
+                
+            idx -= 1
 
-        prev_high = candles[index - 1]["high"]
-        current_close = candles[index]["close"]
-
-        return rsi > 50 and current_close > prev_high
+        return False

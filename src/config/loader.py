@@ -2,7 +2,6 @@
 Config loader — reads strategies.json and instantiates Strategy objects.
 """
 
-import datetime
 import json
 import os
 import logging
@@ -30,7 +29,7 @@ def get_registered_strategies() -> dict[str, type[Strategy]]:
     return dict(_STRATEGY_REGISTRY)
 
 
-def _resolve_instrument_token(kite, exchange: str, symbol: str) -> int | None:
+def _resolve_instrument_token(kite: KiteConnect, exchange: str, symbol: str) -> int | None:
     """Look up instrument_token via kite.instruments()."""
     instruments = kite.instruments(exchange)
     for inst in instruments:
@@ -43,7 +42,7 @@ def _resolve_instrument_token(kite, exchange: str, symbol: str) -> int | None:
 _instrument_cache: dict[str, list[dict]] = {}
 
 
-def _resolve_instrument_token_cached(kite, exchange: str, symbol: str) -> int | None:
+def _resolve_instrument_token_cached(kite: KiteConnect, exchange: str, symbol: str) -> int | None:
     """Look up instrument_token with caching per exchange."""
     if exchange not in _instrument_cache:
         log.info("Fetching instrument list for exchange: %s", exchange)
@@ -106,9 +105,6 @@ def load_strategies(
             #params["session_start"] = session_start
             # session_end = instrument.get("session_end", datetime.time(15, 0, 0))
 
-            print("---------------------------------------------")
-            print(params)
-            print("---------------------------------------------")
             token = _resolve_instrument_token_cached(kite, exchange, symbol)
             if token is None:
                 log.error("Could not find token for %s:%s — skipping.", exchange, symbol)

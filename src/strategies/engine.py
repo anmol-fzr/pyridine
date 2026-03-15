@@ -11,7 +11,7 @@ import logging
 import threading
 from collections import defaultdict
 
-from kiteconnect import KiteTicker
+from kiteconnect import KiteConnect, KiteTicker
 
 from strategies.base import Strategy
 from strategies.backtest import BacktestEngine, generate_report, generate_combined_report
@@ -28,7 +28,7 @@ class StrategyEngine:
     - In backtest mode, fetches candles per instrument and runs each strategy.
     """
 
-    def __init__(self, kite, strategies: list[Strategy]):
+    def __init__(self, kite: KiteConnect, strategies: list[Strategy]):
         self.kite = kite
         self.strategies = strategies
 
@@ -131,7 +131,7 @@ class StrategyEngine:
 
     def run_backtest(
         self,
-        days: int = 60,
+        days: int = 90,
         capital: float = 100_000.0,
         output_dir: str = "reports/backtest",
     ):

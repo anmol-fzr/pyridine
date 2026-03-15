@@ -2,7 +2,6 @@ import os
 
 from frozendict import frozendict as freezed
 from dotenv_vault import load_dotenv
-from hashlib import sha256
 load_dotenv()
 
 envs = freezed({
